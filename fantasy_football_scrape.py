@@ -9,6 +9,7 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 import json
+import csv
 
 def WebsiteFactory(website):
     
@@ -17,6 +18,53 @@ def WebsiteFactory(website):
 
     return None
 
+def PlayerFactory(positionId):
+
+    if positionId == "Receiving":
+        return Receiver()
+
+    return None
+
+class Player():
+
+    player = ""
+    positionId = ""
+    team = ""
+    url = ""
+
+class Receiver(Player):
+   
+    stats_dictionary = { 
+        "RECEPTIONS" : -1,
+        "TARGETS" : -1,
+        "RECEIVING_YARDS" : -1,
+        "RECEIVING_YARDS_PER_RECEPTION" : -1,
+        "LONGEST_RECEPTION" : -1,
+        "RECEIVING_FIRST_DOWNS" : -1,
+        "RECEIVING_TOUCHDOWNS" : -1,
+        "FUMBLES" : -1,
+        "FUMBLES_LOST" : -1
+    }
+
+    def to_string(self):
+        print(f"""
+            Player = {self.player}
+            Team = {self.team}    
+            {self.stats_dictionary}
+        """)
+
+    def extract_data_from_json_dicts(self, data):
+
+        self.player = data["player"]["displayName"]
+        self.positionId = data["player"]["positions"][0]["positionId"]
+        self.url = data["player"]["alias"]["url"]
+        self.team = data["player"]["team"]["displayName"]
+
+        for stat in data['stats']:
+            statId = stat["statId"]
+            self.stats_dictionary[statId] = stat["value"] if stat["value"] is not None else 0
+
+        self.to_string()
 
 class YahooNFL():
 
@@ -57,15 +105,10 @@ class YahooNFL():
         options.add_argument(f"user-agent={user_agent}")
         """
         # Optional: speed it up
-        options.add_argument("--disable-blink-features=AutomationControlled")
-        options.add_argument("--no-sandbox")
-        options.add_argument("--disable-dev-shm-usage")
-
-        # Path to your chromedriver
-        # TODO: I want to use this, but can't find the path to 
-        #driver_path = '/path/to/chromedriver'
-        #service = Service(driver_path)
-        #driver = webdriver.Chrome(service=service, options=options)
+        # TODO: Is this really necessary?
+        #options.add_argument("--disable-blink-features=AutomationControlled")
+        #options.add_argument("--no-sandbox")
+        #options.add_argument("--disable-dev-shm-usage")
 
         service = Service(ChromeDriverManager().install()) 
         driver = webdriver.Chrome(service=service, options=options)
@@ -86,7 +129,9 @@ class YahooNFL():
             # Use JavaScript to access the embedded object
             app_data = driver.execute_script("return window.App?.main;")
 
-            receiving_data = self.find_key_recursive(app_data, "weeklyStatsFootballReceiving")
+            keyword = ["Receiving"]
+            i = 0
+            receiving_data = self.find_key_recursive(app_data, "weeklyStatsFootball" + keyword[i])
             
             receiving = (receiving_data
                 .get("nfl", {})
@@ -97,32 +142,17 @@ class YahooNFL():
                 .get("", {})
                 .get("RECEIVING_YARDS", {})
             )
-            
-            #leaders = receiving.get("leagues", [])[0].get("leagueWeeks", [])[0].get("leaders", [])
-            
+
             leaders = receiving["leagues"][0]["leagueWeeks"][0]["leaders"]
             for leader in leaders:
-                name = leader["player"]["displayName"]
-                print(f"{name}")
-                yards = next((s["value"] for s in leader["stats"] if s["statId"] == "RECEIVING_YARDS"), None)
-                print(f"{name}: {yards} yards")
 
-            """
-            receiving_data = self.find_weekly_stats(app_data)
-            if not receiving_data:
-                raise ValueError("Could not find 'weeklyStatsFootballReceiving'")  
+                #positionId = leader["player"]["positions"][0]["positionId"]
+                player = PlayerFactory(keyword[i])
+                player.extract_data_from_json_dicts(leader)
 
-            # Navigate to the data layer you care about
-            leaders = receiving_data["nfl"]["200"]["2025"]["1"]["PRESEASON"][""]["RECEIVING_YARDS"]["leagues"][0]["leagueWeeks"][0]["leaders"]
-
-            rows = []
-            for entry in leaders:
-                player = entry.get("player", {})
-                print(player)
-                #stats = entry.get("stats", [])
-            """
-
-
+            #
+            # Debugging: This dumps the data
+            #
             if app_data:
                 with open("app_main.json", "w") as f:
                     json.dump(receiving, f, indent=2)
