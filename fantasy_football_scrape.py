@@ -4,9 +4,6 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 import json
 import csv
@@ -27,14 +24,14 @@ def PlayerFactory(positionId):
 
 class Player():
 
-    player = ""
     positionId = ""
-    team = ""
     url = ""
 
 class Receiver(Player):
    
     stats_dictionary = { 
+        "PLAYER" : "",
+        "TEAM" : "",
         "RECEPTIONS" : -1,
         "TARGETS" : -1,
         "RECEIVING_YARDS" : -1,
@@ -48,17 +45,15 @@ class Receiver(Player):
 
     def to_string(self):
         print(f"""
-            Player = {self.player}
-            Team = {self.team}    
             {self.stats_dictionary}
         """)
 
     def extract_data_from_json_dicts(self, data):
 
-        self.player = data["player"]["displayName"]
+        self.stats_dictionary['PLAYER'] = data["player"]["displayName"]
+        self.stats_dictionary['TEAM'] = data["player"]["team"]["displayName"]
         self.positionId = data["player"]["positions"][0]["positionId"]
         self.url = data["player"]["alias"]["url"]
-        self.team = data["player"]["team"]["displayName"]
 
         for stat in data['stats']:
             statId = stat["statId"]
@@ -144,9 +139,8 @@ class YahooNFL():
             )
 
             leaders = receiving["leagues"][0]["leagueWeeks"][0]["leaders"]
-            for leader in leaders:
 
-                #positionId = leader["player"]["positions"][0]["positionId"]
+            for leader in leaders:
                 player = PlayerFactory(keyword[i])
                 player.extract_data_from_json_dicts(leader)
 
