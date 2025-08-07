@@ -87,14 +87,6 @@ def StatsFactory(positionId):
 
     return None
 
-def JsonKeywordFactory(positionId):
-
-    if positionId == "Receiving":
-        return "RECEIVING_YARDS"
-    
-    if positionId == "Rushing":
-        return "RUSHING_YARDS"
-
 class Player():
 
     positionId = ""
