@@ -72,37 +72,33 @@ def PlayerFactory(positionId):
     if positionId == "Receiving":
         return Receiver()
 
+    if positionId == "Rushing":
+        return RunningBack()
+
     return None
 
-def StatsDictionaryFactory(positionId):
+def StatsFactory(positionId):
     
     if positionId == "Receiving":
-        return ReceiverStats().stats_dictionary
+        return ReceivingStats()
+    
+    if positionId == "Rushing":
+        return RushingStats()
 
     return None
+
+def JsonKeywordFactory(positionId):
+
+    if positionId == "Receiving":
+        return "RECEIVING_YARDS"
+    
+    if positionId == "Rushing":
+        return "RUSHING_YARDS"
 
 class Player():
 
     positionId = ""
     url = ""
-
-class ReceiverStats():
-
-    stats_dictionary = { 
-        "PLAYER" : "",
-        "TEAM" : "",
-        "RECEPTIONS" : -1,
-        "TARGETS" : -1,
-        "RECEIVING_YARDS" : -1,
-        "RECEIVING_YARDS_PER_RECEPTION" : -1,
-        "LONGEST_RECEPTION" : -1,
-        "RECEIVING_FIRST_DOWNS" : -1,
-        "RECEIVING_TOUCHDOWNS" : -1,
-        "FUMBLES" : -1,
-        "FUMBLES_LOST" : -1
-    }
-
-class Receiver(Player, ReceiverStats):
 
     def to_string(self):
         print(f"""
@@ -125,6 +121,51 @@ class Receiver(Player, ReceiverStats):
 
         # debugging
         #self.to_string()
+
+class RushingStats():
+
+    json_keyword = "RUSHING_YARDS"
+
+    stats_dictionary = { 
+        "PLAYER" : "",
+        "TEAM" : "",
+        "RUSHING_ATTEMPTS" : -1,
+        "RUSHING_YARDS" : -1,
+        "RUSHING_YARDS_PER_ATTEMPT" : -1,
+        "RUSHING_TOUCHDOWNS" : -1,
+        "RUSHING_FIRST_DOWNS" : -1,
+        "LONGEST_RUSH" : -1,
+        "FUMBLES" : -1,
+        "FUMBLES_LOST" : -1
+    }
+
+class ReceivingStats():
+
+    json_keyword = "RECEIVING_YARDS"
+
+    stats_dictionary = { 
+        "PLAYER" : "",
+        "TEAM" : "",
+        "RECEPTIONS" : -1,
+        "TARGETS" : -1,
+        "RECEIVING_YARDS" : -1,
+        "RECEIVING_YARDS_PER_RECEPTION" : -1,
+        "LONGEST_RECEPTION" : -1,
+        "RECEIVING_FIRST_DOWNS" : -1,
+        "RECEIVING_TOUCHDOWNS" : -1,
+        "FUMBLES" : -1,
+        "FUMBLES_LOST" : -1
+    }
+
+class Receiver(Player, ReceivingStats):
+    def __init__(self):
+        pass
+
+class RunningBack(Player, RushingStats):
+    def __init__(self):
+        pass
+   
+
 
 class YahooNFL():
 
@@ -205,49 +246,52 @@ class YahooNFL():
             # Use JavaScript to access the embedded object
             app_data = driver.execute_script("return window.App?.main;")
 
-            keyword = ["Receiving"]
-            i = 0
-            receiving_data = self.find_key_recursive(app_data, "weeklyStatsFootball" + keyword[i])
-            
-            receiving = (receiving_data
-                .get("nfl", {})
-                .get("200", {})
-                .get("2025", {})
-                .get("1", {})
-                .get("PRESEASON", {})
-                .get("", {})
-                .get("RECEIVING_YARDS", {})
-            )
+            keyword = ["Rushing", "Receiving"]
 
-            leaders = receiving["leagues"][0]["leagueWeeks"][0]["leaders"]
+            for key in keyword:
 
-            csv_filename = "{}_stats.csv".format(keyword[i])
-            with open(csv_filename, mode='w', newline='') as file:
+                receiving_data = self.find_key_recursive(app_data, "weeklyStatsFootball" + key)
 
-                dictionary = StatsDictionaryFactory(keyword[i])
+                stats_data = StatsFactory(key)
+                
+                receiving = (receiving_data
+                    .get("nfl", {})
+                    .get("200", {})
+                    .get("2025", {})
+                    .get("1", {})
+                    .get("PRESEASON", {})
+                    .get("", {})
+                    .get(stats_data.json_keyword, {})
+                )
 
-                # Write header
-                writer = csv.DictWriter(file, fieldnames = list(dictionary.keys()))
-                writer.writeheader()
+                #
+                # Debugging: This dumps the data
+                #
+                if app_data:
+                    with open("app_main.json", "w") as f:
+                        json.dump(receiving, f, indent=2)
+                    print("App data saved to app_main.json")
+                else:
+                    print("App.main not found.")
 
-                for leader in leaders:
-                    player = PlayerFactory(keyword[i])
-                    player.extract_data_from_json_dicts(leader)
-                    writer.writerows([player.get_stats_dictionary()])
+                leaders = receiving["leagues"][0]["leagueWeeks"][0]["leaders"]
 
-            self.csv_file_list.append(csv_filename)
+                csv_filename = "{}_stats.csv".format(key)
+                with open(csv_filename, mode='w', newline='') as file:
 
-            #
-            # Debugging: This dumps the data
-            #
-            """
-            if app_data:
-                with open("app_main.json", "w") as f:
-                    json.dump(receiving, f, indent=2)
-                print("App data saved to app_main.json")
-            else:
-                print("App.main not found.")
-            """
+                    dictionary = stats_data.stats_dictionary
+
+                    # Write header
+                    writer = csv.DictWriter(file, fieldnames = list(dictionary.keys()))
+                    writer.writeheader()
+
+                    for leader in leaders:
+                        player = PlayerFactory(key)
+                        player.extract_data_from_json_dicts(leader)
+                        print(player.get_stats_dictionary())
+                        writer.writerows([player.get_stats_dictionary()])
+
+                self.csv_file_list.append(csv_filename)
 
         finally:
             driver.quit()
