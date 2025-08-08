@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 
+import csv
+from email.message import EmailMessage
+import json
+import mimetypes
+from pathlib import Path
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
-from webdriver_manager.chrome import ChromeDriverManager
-import json
-import csv
 import smtplib
-import mimetypes
-from pathlib import Path
-from email.message import EmailMessage
+from webdriver_manager.chrome import ChromeDriverManager
 
 class Mail():
     
@@ -75,6 +75,12 @@ def PlayerFactory(positionId):
     if positionId == "Rushing":
         return RunningBack()
 
+    if positionId == "Passing":
+        return Quarterback()
+
+    if positionId == "Kicking":
+        return Kicker()
+
     return None
 
 def StatsFactory(positionId):
@@ -85,12 +91,18 @@ def StatsFactory(positionId):
     if positionId == "Rushing":
         return RushingStats()
 
+    if positionId == "Passing":
+        return PassingStats()
+
+    if positionId == "Kicking":
+        return KickingStats()
+
     return None
 
 class Player():
 
-    positionId = ""
-    url = ""
+    positionId = "?"
+    url = "?"
 
     def to_string(self):
         print(f"""
@@ -104,8 +116,18 @@ class Player():
 
         self.stats_dictionary['PLAYER'] = data["player"]["displayName"]
         self.stats_dictionary['TEAM'] = data["player"]["team"]["displayName"]
-        self.positionId = data["player"]["positions"][0]["positionId"]
-        self.url = data["player"]["alias"]["url"]
+
+        # Some players are missing the following data. But since this isn't
+        # required for the table, just absorb it.
+        try:
+            self.positionId = data["player"]["positions"][0]["positionId"]
+        except Exception as e:
+            pass
+
+        try:
+            self.url = data["player"]["alias"]["url"]
+        except Exception as e:
+            pass
 
         for stat in data['stats']:
             statId = stat["statId"]
@@ -113,6 +135,28 @@ class Player():
 
         # debugging
         #self.to_string()
+
+class PassingStats():
+
+    json_keyword = "PASSING_YARDS"
+
+    stats_dictionary = { 
+        "PLAYER" : "",
+        "TEAM" : "",
+        "QB_RATING" : "",
+        "PASSING_COMPLETIONS" : "",
+        "PASSING_ATTEMPTS" : -1,
+        "COMPLETION_PERCENTAGE" : -1,
+        "PASSING_YARDS" : -1,
+        "PASSING_YARDS_PER_ATTEMPT" : -1,
+        "PASSING_TOUCHDOWNS" : -1,
+        "PASSING_INTERCEPTIONS" : -1,
+        "PASSING_FIRST_DOWNS" : -1,
+        "SACKS_TAKEN" : -1,
+        "SACKS_YARDS_LOST" : -1,
+        "FUMBLES" : -1,
+        "FUMBLES_LOST" : -1
+    }
 
 class RushingStats():
 
@@ -149,6 +193,36 @@ class ReceivingStats():
         "FUMBLES_LOST" : -1
     }
 
+class KickingStats():
+
+    json_keyword = "FIELD_GOALS_MADE"
+
+    stats_dictionary = { 
+        "PLAYER" : "",
+        "TEAM" : "",
+        "FIELD_GOALS_MADE_0_19" : -1,
+        "FIELD_GOAL_ATTEMPTS_0_19" : -1,
+        "FIELD_GOALS_MADE_20_29" : -1, 
+        "FIELD_GOAL_ATTEMPTS_20_29" : -1,
+        "FIELD_GOALS_MADE_30_39": -1,
+        "FIELD_GOAL_ATTEMPTS_30_39" : -1,
+        "FIELD_GOALS_MADE_40_49" : -1,
+        "FIELD_GOAL_ATTEMPTS_40_49" : -1,
+        "FIELD_GOALS_MADE_50_PLUS" : -1,
+        "FIELD_GOAL_ATTEMPTS_50_PLUS" : -1,
+        "FIELD_GOALS_MADE" : -1,
+        "FIELD_GOAL_ATTEMPTS" : -1,
+        "FIELD_GOAL_PERCENTAGE" : -1,
+        "LONGEST_FIELD_GOAL" : -1,
+        "EXTRA_POINTS_MADE" : -1,
+        "EXTRA_POINT_ATTEMPTS" : -1,
+        "EXTRA_POINT_PERCENTAGE" : -1
+    }
+
+class Quarterback(Player, PassingStats):
+    def __init__(self):
+        pass
+
 class Receiver(Player, ReceivingStats):
     def __init__(self):
         pass
@@ -156,8 +230,10 @@ class Receiver(Player, ReceivingStats):
 class RunningBack(Player, RushingStats):
     def __init__(self):
         pass
-   
 
+class Kicker(Player, KickingStats):
+    def __init__(self):
+        pass
 
 class YahooNFL():
 
@@ -177,6 +253,17 @@ class YahooNFL():
                 if result is not None:
                     return result
         return None
+
+    def dump_data_to_file(self, data, filename):
+        #
+        # Debugging: This dumps the data
+        #
+        if data:
+            with open(filename, "w") as f:
+                json.dump(data, f, indent=2)
+            print(f"App data saved to {filename}")
+        else:
+            print("App.main not found.")
 
     def email_csvs(self):
 
@@ -227,7 +314,6 @@ class YahooNFL():
             url = "https://sports.yahoo.com/nfl/stats/weekly"
             print(f"driver.get({url})")
             driver.get(url)
-            print("Finished.")
 
             # Wait for JS to load and populate root.App
             #time.sleep(5)  # Adjust as needed, or use WebDriverWait for reliability
@@ -238,11 +324,15 @@ class YahooNFL():
             # Use JavaScript to access the embedded object
             app_data = driver.execute_script("return window.App?.main;")
 
-            keyword = ["Rushing", "Receiving"]
+            self.dump_data_to_file(app_data, "MASTER.json")
+
+            keyword = ["Passing", "Rushing", "Receiving", "Kicking"]
 
             for key in keyword:
 
                 receiving_data = self.find_key_recursive(app_data, "weeklyStatsFootball" + key)
+
+                #self.dump_data_to_file(receiving_data, key + ".json")
 
                 stats_data = StatsFactory(key)
                 
@@ -250,21 +340,11 @@ class YahooNFL():
                     .get("nfl", {})
                     .get("200", {})
                     .get("2025", {})
-                    .get("1", {})
+                    .get("2", {})
                     .get("PRESEASON", {})
                     .get("", {})
                     .get(stats_data.json_keyword, {})
                 )
-
-                #
-                # Debugging: This dumps the data
-                #
-                if app_data:
-                    with open("app_main.json", "w") as f:
-                        json.dump(receiving, f, indent=2)
-                    print("App data saved to app_main.json")
-                else:
-                    print("App.main not found.")
 
                 leaders = receiving["leagues"][0]["leagueWeeks"][0]["leaders"]
 
@@ -279,9 +359,13 @@ class YahooNFL():
 
                     for leader in leaders:
                         player = PlayerFactory(key)
+
                         player.extract_data_from_json_dicts(leader)
-                        print(player.get_stats_dictionary())
+
+                        #print(player.get_stats_dictionary()) # DEBUG
                         writer.writerows([player.get_stats_dictionary()])
+
+                print(f"Created {csv_filename}")
 
                 self.csv_file_list.append(csv_filename)
 
