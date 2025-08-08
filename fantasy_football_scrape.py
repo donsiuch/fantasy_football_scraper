@@ -5,6 +5,7 @@ from email.message import EmailMessage
 import json
 import mimetypes
 from pathlib import Path
+import re
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
@@ -311,7 +312,19 @@ class YahooNFL():
                     "CSVs are attached.",
                     self.csv_file_list)
 
-    def scrape_stats(self):
+    def get_current_week(self, driver):
+        html = driver.page_source
+
+        pattern = r'<!-- -->Week (\d+)<!-- -->'
+
+        matches = re.findall(pattern, html)
+
+        if not matches:
+            raise ValueError("No week number found in the HTML!")
+
+        return matches[0]
+
+    def scrape_stats(self, url):
 
         # Optional: run headless (no GUI)
         options = Options()
@@ -328,9 +341,12 @@ class YahooNFL():
 
         try:
             # Load the Yahoo Sports NFL stats page (or other target)
-            url = "https://sports.yahoo.com/nfl/stats/weekly"
             print(f"driver.get({url})")
             driver.get(url)
+
+            week = self.get_current_week(driver)
+
+            print(f"WEEK = {week}")
 
             # Use JavaScript to access the embedded object
             app_data = driver.execute_script("return window.App?.main;")
@@ -351,7 +367,7 @@ class YahooNFL():
                     .get("nfl", {})
                     .get("200", {})
                     .get("2025", {})
-                    .get("2", {})
+                    .get(week, {})
                     .get("PRESEASON", {})
                     .get("", {})
                     .get(stats_data.json_keyword, {})
@@ -389,7 +405,7 @@ class Program():
 
         website = WebsiteFactory("yahoo")
 
-        website.scrape_stats()
+        website.scrape_stats("https://sports.yahoo.com/nfl/stats/weekly")
 
         website.email_csvs()
 
