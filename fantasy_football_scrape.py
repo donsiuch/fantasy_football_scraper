@@ -323,21 +323,6 @@ class YahooNFL():
         options.add_argument('--headless=new')  # Uncomment for headless mode
         options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/115.0 Safari/537.36")
 
-        """
-        # Use a common browser user agent string
-        user_agent = (
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-        )
-
-        options.add_argument(f"user-agent={user_agent}")
-        """
-        # Optional: speed it up
-        # TODO: Is this really necessary?
-        #options.add_argument("--disable-blink-features=AutomationControlled")
-        #options.add_argument("--no-sandbox")
-        #options.add_argument("--disable-dev-shm-usage")
-
         service = Service(ChromeDriverManager().install()) 
         driver = webdriver.Chrome(service=service, options=options)
 
@@ -346,12 +331,6 @@ class YahooNFL():
             url = "https://sports.yahoo.com/nfl/stats/weekly"
             print(f"driver.get({url})")
             driver.get(url)
-
-            # Wait for JS to load and populate root.App
-            #time.sleep(5)  # Adjust as needed, or use WebDriverWait for reliability
-            WebDriverWait(driver, timeout=15).until(
-                lambda d: d.execute_script("return typeof window.App?.main !== 'undefined';")
-            )
 
             # Use JavaScript to access the embedded object
             app_data = driver.execute_script("return window.App?.main;")
