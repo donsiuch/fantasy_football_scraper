@@ -81,6 +81,9 @@ def PlayerFactory(positionId):
     if positionId == "Kicking":
         return Kicker()
 
+    if positionId == "Defense":
+        return Defense()
+
     return None
 
 def StatsFactory(positionId):
@@ -96,6 +99,9 @@ def StatsFactory(positionId):
 
     if positionId == "Kicking":
         return KickingStats()
+
+    if positionId == "Defense":
+        return Defense()
 
     return None
 
@@ -219,6 +225,28 @@ class KickingStats():
         "EXTRA_POINT_PERCENTAGE" : -1
     }
 
+class DefenseStats():
+
+    json_keyword = "TOTAL_TACKLES"
+
+    stats_dictionary = { 
+        "PLAYER" : "",
+        "TEAM" : "",
+        "SOLO_TACKLES" : -1,
+        "TACKLE_ASSISTS" : -1,
+        "TOTAL_TACKLES" : -1,
+        "SACKS" : -1,
+        "SACKS_YARDS" : -1,
+        "STUFFS" : -1,
+        "INTERCEPTIONS_FORCED" : -1,
+        "INTERCEPTION_RETURN_YARDS" : -1,
+        "INTERCEPTION_RETURN_TOUCHDOWNS" : -1,
+        "FORCED_FUMBLES" : -1,
+        "FUMBLE_RETURN_TOUCHDOWNS" : -1,
+        "PASSES_DEFENDED" : -1,
+        "SAFETIES" : -1
+    }
+
 class Quarterback(Player, PassingStats):
     def __init__(self):
         pass
@@ -232,6 +260,10 @@ class RunningBack(Player, RushingStats):
         pass
 
 class Kicker(Player, KickingStats):
+    def __init__(self):
+        pass
+
+class Defense(Player, DefenseStats):
     def __init__(self):
         pass
 
@@ -326,7 +358,7 @@ class YahooNFL():
 
             self.dump_data_to_file(app_data, "MASTER.json")
 
-            keyword = ["Passing", "Rushing", "Receiving", "Kicking"]
+            keyword = ["Passing", "Rushing", "Receiving", "Kicking", "Defense"]
 
             for key in keyword:
 
