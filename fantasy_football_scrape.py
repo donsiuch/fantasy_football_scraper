@@ -13,6 +13,32 @@ from selenium.webdriver.support.ui import WebDriverWait
 import smtplib
 from webdriver_manager.chrome import ChromeDriverManager
 
+def WebsiteFactory(website):
+    
+    if website == "yahoo":
+        return YahooNFL()
+
+    return None
+
+def StatsFactory(positionId):
+    
+    if positionId == "Receiving":
+        return ReceivingStats()
+    
+    if positionId == "Rushing":
+        return RushingStats()
+
+    if positionId == "Passing":
+        return PassingStats()
+
+    if positionId == "Kicking":
+        return KickingStats()
+
+    if positionId == "Defense":
+        return DefenseStats()
+
+    return None
+
 class Mail():
     
     SENDER_EMAIL = ""
@@ -61,68 +87,28 @@ class Mail():
         except Exception as e:
             print(f"Error sending email: {e}")
 
-def WebsiteFactory(website):
-    
-    if website == "yahoo":
-        return YahooNFL()
-
-    return None
-
-def PlayerFactory(positionId):
-
-    if positionId == "Receiving":
-        return Receiver()
-
-    if positionId == "Rushing":
-        return RunningBack()
-
-    if positionId == "Passing":
-        return Quarterback()
-
-    if positionId == "Kicking":
-        return Kicker()
-
-    if positionId == "Defense":
-        return Defense()
-
-    return None
-
-def StatsFactory(positionId):
-    
-    if positionId == "Receiving":
-        return ReceivingStats()
-    
-    if positionId == "Rushing":
-        return RushingStats()
-
-    if positionId == "Passing":
-        return PassingStats()
-
-    if positionId == "Kicking":
-        return KickingStats()
-
-    if positionId == "Defense":
-        return Defense()
-
-    return None
-
 class Player():
 
     positionId = "?"
     url = "?"
 
+    stats = None
+
+    def __init__(self, table_type):
+        self.stats = StatsFactory(table_type)
+
     def to_string(self):
         print(f"""
-            {self.stats_dictionary}
+            {self.stats.stats_dictionary}
         """)
 
     def get_stats_dictionary(self):
-        return self.stats_dictionary
+        return self.stats.stats_dictionary
 
     def extract_data_from_json_dicts(self, data):
 
-        self.stats_dictionary['PLAYER'] = data["player"]["displayName"]
-        self.stats_dictionary['TEAM'] = data["player"]["team"]["displayName"]
+        self.stats.stats_dictionary['PLAYER'] = data["player"]["displayName"]
+        self.stats.stats_dictionary['TEAM'] = data["player"]["team"]["displayName"]
 
         # Some players are missing the following data. But since this isn't
         # required for the table, just absorb it.
@@ -138,14 +124,14 @@ class Player():
 
         for stat in data['stats']:
             statId = stat["statId"]
-            self.stats_dictionary[statId] = stat["value"] if stat["value"] is not None else 0
+            self.stats.stats_dictionary[statId] = stat["value"] if stat["value"] is not None else 0
 
         # debugging
         #self.to_string()
 
 class PassingStats():
 
-    json_keyword = "PASSING_YARDS"
+    stats_keyword = "PASSING_YARDS"
 
     stats_dictionary = { 
         "PLAYER" : "",
@@ -167,7 +153,7 @@ class PassingStats():
 
 class RushingStats():
 
-    json_keyword = "RUSHING_YARDS"
+    stats_keyword = "RUSHING_YARDS"
 
     stats_dictionary = { 
         "PLAYER" : "",
@@ -184,7 +170,7 @@ class RushingStats():
 
 class ReceivingStats():
 
-    json_keyword = "RECEIVING_YARDS"
+    stats_keyword = "RECEIVING_YARDS"
 
     stats_dictionary = { 
         "PLAYER" : "",
@@ -202,7 +188,7 @@ class ReceivingStats():
 
 class KickingStats():
 
-    json_keyword = "FIELD_GOALS_MADE"
+    stats_keyword = "FIELD_GOALS_MADE"
 
     stats_dictionary = { 
         "PLAYER" : "",
@@ -228,7 +214,7 @@ class KickingStats():
 
 class DefenseStats():
 
-    json_keyword = "TOTAL_TACKLES"
+    stats_keyword = "TOTAL_TACKLES"
 
     stats_dictionary = { 
         "PLAYER" : "",
@@ -247,26 +233,6 @@ class DefenseStats():
         "PASSES_DEFENDED" : -1,
         "SAFETIES" : -1
     }
-
-class Quarterback(Player, PassingStats):
-    def __init__(self):
-        pass
-
-class Receiver(Player, ReceivingStats):
-    def __init__(self):
-        pass
-
-class RunningBack(Player, RushingStats):
-    def __init__(self):
-        pass
-
-class Kicker(Player, KickingStats):
-    def __init__(self):
-        pass
-
-class Defense(Player, DefenseStats):
-    def __init__(self):
-        pass
 
 class YahooNFL():
 
@@ -353,39 +319,40 @@ class YahooNFL():
 
             self.dump_data_to_file(app_data, "MASTER.json")
 
-            keyword = ["Passing", "Rushing", "Receiving", "Kicking", "Defense"]
+            table_types = ["Passing", "Rushing", "Receiving", "Kicking", "Defense"]
 
-            for key in keyword:
+            for table_type in table_types:
 
-                receiving_data = self.find_key_recursive(app_data, "weeklyStatsFootball" + key)
+                json_table = self.find_key_recursive(app_data, "weeklyStatsFootball" + table_type)
 
-                #self.dump_data_to_file(receiving_data, key + ".json")
+                #self.dump_data_to_file(json_table, table_type + ".json")
 
-                stats_data = StatsFactory(key)
+                stats = StatsFactory(table_type)
                 
-                receiving = (receiving_data
+                json_players_table = (json_table
                     .get("nfl", {})
                     .get("200", {})
                     .get("2025", {})
                     .get(week, {})
                     .get("PRESEASON", {})
                     .get("", {})
-                    .get(stats_data.json_keyword, {})
+                    .get(stats.stats_keyword, {})
                 )
 
-                leaders = receiving["leagues"][0]["leagueWeeks"][0]["leaders"]
+                leaders = json_players_table["leagues"][0]["leagueWeeks"][0]["leaders"]
 
-                csv_filename = "{}_stats.csv".format(key)
+                csv_filename = "{}_stats.csv".format(table_type)
                 with open(csv_filename, mode='w', newline='') as file:
 
-                    dictionary = stats_data.stats_dictionary
+                    stats_dictionary = stats.stats_dictionary
 
                     # Write header
-                    writer = csv.DictWriter(file, fieldnames = list(dictionary.keys()))
+                    writer = csv.DictWriter(file, fieldnames = list(stats_dictionary.keys()))
                     writer.writeheader()
 
                     for leader in leaders:
-                        player = PlayerFactory(key)
+
+                        player = Player(table_type)
 
                         player.extract_data_from_json_dicts(leader)
 
