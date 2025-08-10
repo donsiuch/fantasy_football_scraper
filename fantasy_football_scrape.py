@@ -34,6 +34,15 @@ def StatsFactory(positionId):
     if positionId == "Kicking":
         return KickingStats()
 
+    if positionId == "Kickoffs":
+        return KickoffsStats()
+
+    if positionId == "Punting":
+        return PuntingStats()
+
+    if positionId == "Returns":
+        return ReturnsStats()
+
     if positionId == "Defense":
         return DefenseStats()
 
@@ -212,6 +221,62 @@ class KickingStats():
         "EXTRA_POINT_PERCENTAGE" : -1
     }
 
+class KickoffsStats():
+
+    stats_keyword = "KICKOFF_YARDS"
+
+    stats_dictionary = { 
+        "PLAYER" : "",
+        "TEAM" : "",
+        "KICKOFFS" : -1,
+        "KICKOFF_YARDS" : -1,
+        "KICKOFF_YARDS_PER_KICKOFF" : -1, 
+        "LONGEST_KICKOFF" : -1,
+        "KICKOFFS_FAIR_CAUGHT": -1,
+        "KICKOFF_TOUCHBACKS" : -1,
+        "KICKOFFS_RETURNED" : -1,
+        "RETURN_YARDS_ALLOWED_PER_KICKOFF" : -1,
+        "KICKOFFS_RETURNED_FOR_TOUCHDOWN" : -1,
+    }
+
+class PuntingStats():
+
+    stats_keyword = "PUNT_YARDS"
+
+    stats_dictionary = { 
+        "PLAYER" : "",
+        "TEAM" : "",
+        "PUNTS" : -1,
+        "PUNT_YARDS" : -1,
+        "PUNT_YARDS_PER_PUNT" : -1, 
+        "LONGEST_PUNT" : -1,
+        "PUNTS_INSIDE_20": -1,
+        "PUNTS_FAIR_CAUGHT" : -1,
+        "PUNT_TOUCHBACKS" : -1,
+        "PUNTS_BLOCKED" : -1,
+        "PUNTS_RETURNED" : -1,
+        "RETURN_YARDS_ALLOWED_PER_PUNT" : -1,
+    }
+
+class ReturnsStats():
+
+    stats_keyword = "RETURN_YARDS_PER_KICKOFF"
+
+    stats_dictionary = { 
+        "PLAYER" : "",
+        "TEAM" : "",
+        "KICKOFF_RETURNS" : -1,
+        "KICKOFF_RETURN_YARDS" : -1,
+        "RETURN_YARDS_PER_KICKOFF" : -1, 
+        "LONGEST_KICKOFF_RETURN" : -1,
+        "KICKOFF_RETURN_TOUCHDOWNS": -1,
+        "PUNT_RETURNS" : -1,
+        "PUNT_RETURN_YARDS" : -1,
+        "RETURN_YARDS_PER_PUNT" : -1,
+        "LONGEST_PUNT_RETURN" : -1,
+        "PUNT_RETURN_TOUCHDOWNS" : -1,
+    }
+
 class DefenseStats():
 
     stats_keyword = "TOTAL_TACKLES"
@@ -319,7 +384,16 @@ class YahooNFL():
 
             self.dump_data_to_file(app_data, "MASTER.json")
 
-            table_types = ["Passing", "Rushing", "Receiving", "Kicking", "Defense"]
+            table_types = [
+                "Passing", 
+                "Rushing", 
+                "Receiving", 
+                "Kicking", 
+                "Kickoffs", 
+                "Punting", 
+                "Returns", 
+                "Defense"
+            ]
 
             for table_type in table_types:
 
