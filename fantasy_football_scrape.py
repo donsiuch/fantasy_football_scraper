@@ -415,7 +415,7 @@ class YahooNFL():
 
                 leaders = json_players_table["leagues"][0]["leagueWeeks"][0]["leaders"]
 
-                csv_filename = "{}_stats.csv".format(table_type)
+                csv_filename = "{}_week_{}.csv".format(table_type, week)
                 with open(csv_filename, mode='w', newline='') as file:
 
                     stats_dictionary = stats.stats_dictionary
