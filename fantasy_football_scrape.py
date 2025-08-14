@@ -303,6 +303,8 @@ class YahooNFL():
 
     csv_file_list = []
 
+    url = "https://sports.yahoo.com/nfl/stats/weekly"
+
     def find_key_recursive(self, d, key):
         if isinstance(d, dict):
             if key in d:
@@ -355,7 +357,9 @@ class YahooNFL():
 
         return matches[0]
 
-    def scrape_stats(self, url):
+    def scrape_stats(self):
+
+        url = self.url
 
         # Optional: run headless (no GUI)
         options = Options()
@@ -446,7 +450,7 @@ class Program():
 
         website = WebsiteFactory("yahoo")
 
-        website.scrape_stats("https://sports.yahoo.com/nfl/stats/weekly")
+        website.scrape_stats()
 
         website.email_csvs()
 
