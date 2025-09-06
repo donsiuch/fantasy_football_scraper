@@ -4,6 +4,7 @@ import csv
 from email.message import EmailMessage
 import json
 import mimetypes
+import os
 from pathlib import Path
 import re
 from selenium import webdriver
@@ -412,14 +413,20 @@ class YahooNFL():
                     .get("200", {})
                     .get("2025", {})
                     .get(week, {})
-                    .get("PRESEASON", {})
+                    .get("REGULAR_SEASON", {})
                     .get("", {})
                     .get(stats.stats_keyword, {})
                 )
 
                 leaders = json_players_table["leagues"][0]["leagueWeeks"][0]["leaders"]
 
-                csv_filename = "{}_week_{}.csv".format(table_type, week)
+                season_folder = f"season_2025_2026"
+                week_folder = f"week_{week}"
+                out_dir = os.path.join(season_folder, week_folder)
+                os.makedirs(out_dir, exist_ok=True)
+
+                #csv_filename = "{}_week_{}.csv".format(table_type, week)
+                csv_filename = os.path.join(out_dir, f"{table_type}.csv")
                 with open(csv_filename, mode='w', newline='') as file:
 
                     stats_dictionary = stats.stats_dictionary
